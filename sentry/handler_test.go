@@ -20,9 +20,10 @@ func Test_ok(t *testing.T) {
 	withInstanceProblem.Instance = "http://instance.example/"
 
 	testCases := []struct {
-		name       string
-		problem    *problems.DefaultProblem
-		wantEvents []*sentrysdk.Event
+		name            string
+		problem         *problems.DefaultProblem
+		wantEvents      []*sentrysdk.Event
+		considerProblem func(statusCode int) bool
 	}{
 		{
 			"minimal",
@@ -36,6 +37,7 @@ func Test_ok(t *testing.T) {
 					},
 				},
 			},
+			nil,
 		},
 		{
 			"with detail",
@@ -50,6 +52,7 @@ func Test_ok(t *testing.T) {
 					},
 				},
 			},
+			nil,
 		},
 		{
 			"with instance",
@@ -64,6 +67,29 @@ func Test_ok(t *testing.T) {
 					},
 				},
 			},
+			nil,
+		},
+		{
+			"client error",
+			problems.NewStatusProblem(http.StatusBadRequest),
+			nil,
+			nil,
+		},
+		{
+			"capture client error",
+			problems.NewStatusProblem(http.StatusBadRequest),
+			[]*sentrysdk.Event{
+				{
+					Level:   sentrysdk.LevelInfo,
+					Message: http.StatusText(http.StatusBadRequest),
+					Extra: map[string]interface{}{
+						"problem.status": http.StatusBadRequest,
+					},
+				},
+			},
+			func(statusCode int) bool {
+				return statusCode >= 400 && statusCode < 500
+			},
 		},
 	}
 	for _, tc := range testCases {
@@ -74,7 +100,7 @@ func Test_ok(t *testing.T) {
 				}
 				problems.StatusProblemHandler(tc.problem).ServeHTTP(rw, r)
 			})
-			srv := httptest.NewServer(withSentryHub()(New(Options{WaitForDelivery: true})(h)))
+			srv := httptest.NewServer(withSentryHub()(New(Options{WaitForDelivery: true, ConsiderProblematicStatusCode: tc.considerProblem})(h)))
 			defer srv.Close()
 
 			var mux sync.Mutex

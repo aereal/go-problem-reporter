@@ -34,6 +34,15 @@ type Options struct {
 
 	// FlushTimeout for the delivery events. Defaults to 2s. Only relevant when WaitForDelivery is true.
 	FlushTimeout time.Duration
+
+	// ConsiderProblematicStatusCode tells the middleware what status code will have the problem details.
+	//
+	// Defaults to 500-599 considered problematic status code.
+	ConsiderProblematicStatusCode func(statusCode int) bool
+}
+
+var OnlyServerError = func(statusCode int) bool {
+	return statusCode >= 500 && statusCode < 600
 }
 
 // New returns new middleware that reports problems to Sentry.
@@ -46,12 +55,16 @@ func New(opts Options) httputil.Middleware {
 	if timeout == 0 {
 		timeout = time.Second * 2
 	}
+	check := opts.ConsiderProblematicStatusCode
+	if check == nil {
+		check = OnlyServerError
+	}
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
 			buf := new(bytes.Buffer)
 			tw := httputil.NewTeeResponseWriter(rw, buf)
 			next.ServeHTTP(tw, r)
-			if !isValidContentType(tw.Header().Get("content-type")) {
+			if !(isValidContentType(tw.Header().Get("content-type")) && check(tw.StatusCode())) {
 				return
 			}
 			hub := sentrysdk.GetHubFromContext(r.Context())
