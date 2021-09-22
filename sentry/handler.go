@@ -77,15 +77,10 @@ func New(opts Options) httputil.Middleware {
 			}
 			hub.WithScope(func(scope *sentrysdk.Scope) {
 				msg := p.Title
+				pc := newProblemContext(p)
+				scope.SetContext("problemDetails", pc)
 				if p.Detail != "" {
-					scope.SetExtra("problem.detail", p.Detail)
 					msg = p.Detail
-				}
-				if p.Status != 0 {
-					scope.SetExtra("problem.status", p.Status)
-				}
-				if p.Instance != "" {
-					scope.SetExtra("problem.instance", p.Instance)
 				}
 				_ = hub.CaptureMessage(msg)
 				if opts.WaitForDelivery {
@@ -93,5 +88,21 @@ func New(opts Options) httputil.Middleware {
 				}
 			})
 		})
+	}
+}
+
+type problemContext struct {
+	Detail   string `json:"detail,omitempty"`
+	Status   int    `json:"status,omitempty"`
+	Instance string `json:"instance,omitempty"`
+	Type     string `json:"problemType,omitempty"`
+}
+
+func newProblemContext(p *problems.DefaultProblem) *problemContext {
+	return &problemContext{
+		Detail:   p.Detail,
+		Status:   p.Status,
+		Instance: p.Instance,
+		Type:     p.Type,
 	}
 }

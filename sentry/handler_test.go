@@ -32,8 +32,13 @@ func Test_ok(t *testing.T) {
 				{
 					Level:   sentrysdk.LevelInfo,
 					Message: http.StatusText(http.StatusInternalServerError),
-					Extra: map[string]interface{}{
-						"problem.status": http.StatusInternalServerError,
+					Extra:   map[string]interface{}{},
+					Contexts: map[string]interface {
+					}{
+						"problemDetails": &problemContext{
+							Type:   "about:blank",
+							Status: http.StatusInternalServerError,
+						},
 					},
 				},
 			},
@@ -46,9 +51,14 @@ func Test_ok(t *testing.T) {
 				{
 					Level:   sentrysdk.LevelInfo,
 					Message: "some details",
-					Extra: map[string]interface{}{
-						"problem.status": http.StatusInternalServerError,
-						"problem.detail": "some details",
+					Extra:   map[string]interface{}{},
+					Contexts: map[string]interface {
+					}{
+						"problemDetails": &problemContext{
+							Type:   "about:blank",
+							Status: http.StatusInternalServerError,
+							Detail: "some details",
+						},
 					},
 				},
 			},
@@ -61,9 +71,14 @@ func Test_ok(t *testing.T) {
 				{
 					Level:   sentrysdk.LevelInfo,
 					Message: http.StatusText(http.StatusInternalServerError),
-					Extra: map[string]interface{}{
-						"problem.status":   http.StatusInternalServerError,
-						"problem.instance": "http://instance.example/",
+					Extra:   map[string]interface{}{},
+					Contexts: map[string]interface {
+					}{
+						"problemDetails": &problemContext{
+							Type:     "about:blank",
+							Status:   http.StatusInternalServerError,
+							Instance: "http://instance.example/",
+						},
 					},
 				},
 			},
@@ -82,8 +97,13 @@ func Test_ok(t *testing.T) {
 				{
 					Level:   sentrysdk.LevelInfo,
 					Message: http.StatusText(http.StatusBadRequest),
-					Extra: map[string]interface{}{
-						"problem.status": http.StatusBadRequest,
+					Extra:   map[string]interface{}{},
+					Contexts: map[string]interface {
+					}{
+						"problemDetails": &problemContext{
+							Type:   "about:blank",
+							Status: http.StatusBadRequest,
+						},
 					},
 				},
 			},
@@ -165,10 +185,13 @@ func withSentryHub() httputil.Middleware {
 var sentryEventCmpOptions = cmp.Options{
 	cmpopts.IgnoreFields(
 		sentry.Event{},
-		"Contexts", "EventID", "Platform", "Release", "Sdk", "ServerName", "Tags", "Timestamp",
+		"EventID", "Platform", "Release", "Sdk", "ServerName", "Tags", "Timestamp",
 	),
 	cmpopts.IgnoreFields(
 		sentry.Request{},
 		"Env",
 	),
+	cmpopts.IgnoreMapEntries(func(key string, value interface{}) bool {
+		return key != "problemDetails"
+	}),
 }
