@@ -30,3 +30,29 @@ jobs:
           go-version: ${{ matrix.go_version }}
       - name: test
         run: go test -v -race -cover -covermode=atomic ./...
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs:
+      - test
+      - lint
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '16.x'
+      - uses: actions/cache@v2
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm
+          restore-keys: |
+            ${{ runner.os }}-npm
+      - run: |
+          npx semantic-release \
+            --debug \
+            --branches main \
+            --plugins @semantic-release/commit-analyzer \
+            --plugins @semantic-release/release-notes-generator \
+            --plugins @semantic-release/github
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
