@@ -1,6 +1,6 @@
 module github.com/aereal/go-problem-reporter
 
-go 1.17
+go 1.19
 
 require (
 	github.com/aereal/gomas v0.3.0
